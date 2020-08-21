@@ -1,10 +1,12 @@
 
+
 ## Limpar um datagridview
 ===========================================
 grdCampanha.Rows.Clear();
 
-## 
+## Remover o vínculo de um datasource no datagridview
 ===========================================
+DataGridView1.DataSource=null;
 
 ## 
 ===========================================
