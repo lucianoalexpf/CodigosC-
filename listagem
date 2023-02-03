@@ -71,5 +71,52 @@ END
 GO
 
 
+ALTER FUNCTION [dbo].[Tool_VarbinaryToVarchar_Text]
+(
+	@VarbinaryValue	VARBINARY(max),
+	@bitASCIIOnly	BIT = 0
+)
+RETURNS VARCHAR(max) AS
+	BEGIN
+	DECLARE @NumberOfBytes 	INT
 
+	SET @NumberOfBytes = DATALENGTH(@VarbinaryValue)
+	-- PART ONE --
+	IF (@NumberOfBytes > 4)
+	BEGIN
+		DECLARE @FirstHalfNumberOfBytes INT
+		DECLARE @SecondHalfNumberOfBytes INT
+		SET @FirstHalfNumberOfBytes  = @NumberOfBytes/2
+		SET @SecondHalfNumberOfBytes = @NumberOfBytes - @FirstHalfNumberOfBytes
+		-- Call this function recursively with the two parts of the input split in half
+		RETURN dbo.Tool_VarbinaryToVarchar_Text(CAST(SUBSTRING(@VarbinaryValue, 1					        , @FirstHalfNumberOfBytes)  AS VARBINARY(max)),@bitASCIIOnly)
+			 + dbo.Tool_VarbinaryToVarchar_Text(CAST(SUBSTRING(@VarbinaryValue, @FirstHalfNumberOfBytes+1 , @SecondHalfNumberOfBytes) AS VARBINARY(max)),@bitASCIIOnly)
+	END
+	
+	IF (@NumberOfBytes = 0)
+	BEGIN
+		RETURN ''	-- No bytes found, therefore no 'hex string' is returned
+	END
+	
+	-- PART TWO --
+	DECLARE @HighByte 		INT
+	-- @NumberOfBytes <= 4 (four or less characters/8 hex digits were input)
+	--						 eg. 88887777 66665555 44443333 22221111
+	-- We'll process ONLY the right-most (least-significant) Byte, which consists
+	-- of eight bits
+
+	-- 2. Carve off the rightmost eight bits/single hex digit (ie 22221111)
+	--    Divide by 16 does a shift-left (now processing 2222)
+	SET @HighByte = CAST(@VarbinaryValue AS INT) & 255
+	IF @bitASCIIOnly = 1 AND (@HighByte < 32 OR @HighByte > 126) SET @HighByte=13;
+
+	-- 3. Trim the byte (two hex values) from the right (least significant) input Binary
+	--    in preparation for further parsing
+	SET @VarbinaryValue = SUBSTRING(@VarbinaryValue, 1, (@NumberOfBytes-1))
+
+	-- 4. Recursively call this method on the remaining Binary data, concatenating the text 
+	--    'value' we just decoded as their ASCII character representation
+	--    ie. we pass 88887777 66665555 44443333 back to this function, adding X to the result string
+	RETURN dbo.Tool_VarbinaryToVarchar_Text(@VarbinaryValue,@bitASCIIOnly) + CHAR(@HighByte)
+END
 
