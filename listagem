@@ -1,55 +1,75 @@
+//Este script lê o diagrama feito no sqlserver
+
+USE [SSVE_1.30.0123.11]
+GO
+
+/****** Object:  UserDefinedFunction [dbo].[fnTool_ScriptDiagram_Text]    Script Date: 03/02/2023 15:11:23 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER FUNCTION [dbo].[fnTool_ScriptDiagram_Text]()
+RETURNS 
+@tblOut TABLE 
+(
+	-- Add the column definitions for the TABLE variable here
+	diagramname		NVARCHAR(128), 
+	diagram_id		INT PRIMARY KEY,
+    diagram_text	VARCHAR(MAX),
+    diagram_ASCII	VARCHAR(MAX)
+)
+AS
+BEGIN
+	DECLARE @name			NVARCHAR(128);
+	DECLARE @diagram_id		INT;
+	DECLARE @index			INT;
+	DECLARE @size			INT;
+	DECLARE @chunk			INT;
+	DECLARE @line			VARCHAR(MAX);
+	DECLARE @lineASC		VARCHAR(MAX);
+	DECLARE @CurrentPos		INT;
+	SELECT @CurrentPos = MIN(diagram_id) FROM dbo.sysdiagrams;
+
+	WHILE (@CurrentPos IS NOT NULL)
+	BEGIN
+		-- Set start index, and chunk 'constant' value
+		SET @index = 1;		-- 
+		SET @chunk = 32;	-- values that work: 2, 6
+							-- values that fail: 15,16, 64
+		
+		SELECT	@diagram_id = diagram_id,
+				@size = DATALENGTH(definition),
+				@name = name
+		  FROM dbo.sysdiagrams 
+		 WHERE diagram_id = @CurrentPos;
+
+		-- Now with the diagram_id, do all the work
+
+		SET @line = '';
+		SET @lineASC = '';
+		WHILE @index < @size
+		BEGIN
+			-- Output as many UPDATE statements as required to append all the diagram binary
+			-- data, represented as hexadecimal strings
+			SELECT  @line = @line + dbo.Tool_VarbinaryToVarchar_Text(SUBSTRING (definition, @index, @chunk),0),
+					@lineASC = @lineASC + dbo.Tool_VarbinaryToVarchar_Text(SUBSTRING (definition, @index, @chunk),1)
+			  FROM	dbo.sysdiagrams 
+			 WHERE	diagram_id = @CurrentPos;
+			 
+			SET @index = @index + @chunk;
+		END
+		INSERT INTO @tblOut	(diagramname, diagram_id, diagram_text, diagram_ASCII)
+			 VALUES			(@name,		 @diagram_id, @line,		REPLACE(@lineASC,CHAR(13),''));
+		SELECT @CurrentPos = MIN(diagram_id)
+		  FROM dbo.sysdiagrams
+		 WHERE diagram_id > @CurrentPos;
+	END
+	RETURN;
+END
+GO
 
 
-## Limpar um datagridview
-===========================================
-grdCampanha.Rows.Clear();
-
-## Remover o vínculo de um datasource no datagridview
-===========================================
-DataGridView1.DataSource=null;
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
-
-## 
-===========================================
 
 
